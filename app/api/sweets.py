@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.api.deps import get_db, get_current_admin
+from app.api.deps import get_db, get_current_admin, get_current_user
 from app.models.sweet import Sweet
 from app.schemas.sweet import SweetCreate, SweetUpdate, SweetResponse
 
@@ -16,10 +16,10 @@ def get_sweets(db: Session = Depends(get_db)):
 
 @router.get("/search", response_model=List[SweetResponse])
 def search_sweets(
-    name: Optional[str] = None,
-    category: Optional[str] = None,
-    min_price: Optional[float] = Query(None, ge=0),
-    max_price: Optional[float] = Query(None, ge=0),
+    name: Optional[str] = Query(None, min_length=1),
+    category: Optional[str] = Query(None, min_length=1),
+    min_price: Optional[float] = Query(None, gt=0),
+    max_price: Optional[float] = Query(None, gt=0),
     db: Session = Depends(get_db),
 ):
     query = db.query(Sweet)
@@ -80,4 +80,39 @@ def delete_sweet(
 
     db.delete(sweet)
     db.commit()
-    return {"message": "Sweet deleted successfully"}
+    return {"detail": "Sweet deleted"}
+
+
+@router.post("/{sweet_id}/purchase")
+def purchase_sweet(
+    sweet_id: int,
+    quantity: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    sweet = db.query(Sweet).filter(Sweet.id == sweet_id).first()
+    if not sweet:
+        raise HTTPException(status_code=404, detail="Sweet not found")
+
+    if sweet.quantity < quantity:
+        raise HTTPException(status_code=400, detail="Insufficient stock")
+
+    sweet.quantity -= quantity
+    db.commit()
+    return {"detail": "Purchase successful"}
+
+
+@router.post("/{sweet_id}/restock")
+def restock_sweet(
+    sweet_id: int,
+    quantity: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin),
+):
+    sweet = db.query(Sweet).filter(Sweet.id == sweet_id).first()
+    if not sweet:
+        raise HTTPException(status_code=404, detail="Sweet not found")
+
+    sweet.quantity += quantity
+    db.commit()
+    return {"detail": "Sweet restocked"}
