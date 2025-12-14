@@ -11,6 +11,3 @@ app.include_router(sweets_router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-
