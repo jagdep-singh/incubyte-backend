@@ -35,7 +35,8 @@ def get_current_user(
     return user
 
 
-def admin_only(user=Depends(get_current_user)):
-    if not user.is_admin:
+def get_current_admin(current_user=Depends(get_current_user)):
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return user
+    return current_user
+
