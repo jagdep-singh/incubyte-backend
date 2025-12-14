@@ -12,25 +12,30 @@ from app.core.security import (
 )
 from app.core.config import JWT_EXPIRE_MINUTES
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
-    if not user:
-        user = User(
-            email=data.email,
-            hashed_password=hash_password(data.password),
-            is_admin=False,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+    user = User(
+        email=data.email,
+        hashed_password=hash_password(data.password),
+        is_admin=False,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
     token = create_access_token(
-        {"sub": str(user.id)},
+        {
+            "sub": str(user.id),
+            "role": "admin" if user.is_admin else "user",
+        },
         expires_minutes=JWT_EXPIRE_MINUTES,
     )
 
@@ -44,13 +49,14 @@ def login(
 ):
     user = db.query(User).filter(User.email == form_data.username).first()
 
-    if not user or not verify_password(
-        form_data.password, user.hashed_password
-    ):
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token(
-        {"sub": str(user.id)},
+        {
+            "sub": str(user.id),
+            "role": "admin" if user.is_admin else "user",
+        },
         expires_minutes=JWT_EXPIRE_MINUTES,
     )
 
