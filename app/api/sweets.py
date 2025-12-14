@@ -6,7 +6,7 @@ from app.api.deps import get_db, get_current_admin, get_current_user
 from app.models.sweet import Sweet
 from app.schemas.sweet import SweetCreate, SweetUpdate, SweetResponse
 
-router = APIRouter(prefix="/api/sweets", tags=["sweets"])
+router = APIRouter(tags=["sweets"])
 
 
 @router.get("/", response_model=List[SweetResponse])

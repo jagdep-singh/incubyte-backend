@@ -12,7 +12,7 @@ from app.core.security import (
 )
 from app.core.config import JWT_EXPIRE_MINUTES
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse)
